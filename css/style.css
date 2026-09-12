@@ -328,18 +328,51 @@ body.has-cursor, body.has-cursor a, body.has-cursor button{ cursor: none; }
 }
 
 /* ============ INCLUDED — BENTO ============ */
-.included-grid{ display:grid; grid-template-columns: repeat(4,1fr); grid-auto-rows: 150px; gap: 18px; }
+.included-grid{ display:grid; grid-template-columns: repeat(4,1fr); grid-auto-rows: 168px; gap: 18px; }
 .included-card{
   background: var(--paper-2); border:1px solid var(--line-on-paper); border-radius: var(--radius-sm);
-  padding: 24px; display:flex; flex-direction:column; justify-content:space-between;
-  transition: transform .3s ease, border-color .3s;
+  padding: 22px; display:flex; flex-direction:column; justify-content:space-between;
+  transition: transform .3s ease, border-color .3s, box-shadow .3s ease;
+  position:relative; overflow:hidden;
+  background-image: radial-gradient(rgba(12,12,10,.05) 1px, transparent 1px);
+  background-size: 16px 16px;
 }
-.included-card:hover{ border-color: rgba(255,90,31,.4); }
-.included-card.big{ grid-column: span 2; grid-row: span 2; }
-.ic-icon{ width:34px; height:34px; border-radius:9px; background: var(--paper-3); display:flex; align-items:center; justify-content:center; color: var(--ink-hi); }
-.ic-icon svg{ width:18px; height:18px; stroke: var(--signal); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-.included-card h4{ font-size:1rem; margin:0; font-weight:600; font-family: var(--ff-display); }
-.included-card p{ font-size:.86rem; opacity:.68; margin: 6px 0 0; }
+.included-card:nth-child(even){ background-color: var(--paper-3); }
+.included-card:hover{ border-color: rgba(255,90,31,.45); transform: translateY(-3px); box-shadow: 0 20px 40px -20px rgba(12,12,10,.35); }
+.ic-num{
+  position:absolute; top:8px; right:14px; font-family: var(--ff-display); font-size:2.6rem; font-weight:600;
+  color: transparent; -webkit-text-stroke: 1px var(--line-on-paper); line-height:1; pointer-events:none;
+}
+.ic-icon{
+  width:46px; height:46px; border-radius:12px; background: var(--signal-soft); border:1px solid rgba(255,90,31,.25);
+  display:flex; align-items:center; justify-content:center; color: var(--signal); position:relative; z-index:1;
+  transition: transform .3s ease;
+}
+.included-card:hover .ic-icon{ transform: scale(1.08) rotate(-4deg); }
+.ic-icon svg{ width:22px; height:22px; stroke: currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.included-card h4{ font-size:1.02rem; margin:0; font-weight:600; font-family: var(--ff-display); position:relative; z-index:1; max-width: 85%; }
+.included-card p{ font-size:.86rem; opacity:.68; margin: 6px 0 0; position:relative; z-index:1; }
+
+/* Big feature tile — real photo anchor instead of empty space */
+.included-card.big{
+  grid-column: span 2; grid-row: span 2; background-image:none; justify-content:flex-end;
+  background-size: cover; background-position: center;
+  background-blend-mode: normal;
+}
+.included-card.big::before{
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(190deg, rgba(12,12,10,.12) 0%, rgba(12,12,10,.55) 68%, rgba(12,12,10,.86) 100%);
+  z-index:0;
+}
+.included-card.big .ic-tag{
+  position:relative; z-index:1; align-self:flex-start;
+  font-family: var(--ff-mono); font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  color: var(--signal-2); background: rgba(12,12,10,.55); border:1px solid rgba(255,176,32,.35);
+  padding:6px 12px; border-radius:999px;
+}
+.included-card.big h4{ color: var(--text-hi); font-size:1.3rem; max-width:80%; }
+.included-card.big p{ color: var(--text-dim); opacity:1; max-width: 78%; }
+.included-card.big .ic-num{ -webkit-text-stroke: 1px rgba(244,239,226,.25); }
 
 /* ============ INSTRUCTOR — CORKBOARD COLLAGE ============ */
 .corkboard{ position:relative; height: 520px; }
