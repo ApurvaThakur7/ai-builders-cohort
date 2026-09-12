@@ -6,7 +6,7 @@ const navLinks = document.getElementById('navLinks');
 navToggle.addEventListener('click', () => {
   const open = navLinks.classList.toggle('open');
   if (open) {
-    navLinks.style.cssText = 'display:flex;flex-direction:column;gap:16px;position:absolute;top:100%;left:0;right:0;background:#0a0b12;padding:22px 28px;border-bottom:1px solid #262b3d;z-index:600;';
+    navLinks.style.cssText = 'display:flex;flex-direction:column;gap:16px;position:absolute;top:100%;left:0;right:0;background:#0c0c0a;padding:22px 28px;border-bottom:1px solid rgba(244,239,226,.14);z-index:600;';
   } else {
     navLinks.removeAttribute('style');
   }
@@ -72,8 +72,128 @@ const ctaObserver = new IntersectionObserver((entries) => {
 }, { threshold: 0 });
 ctaObserver.observe(hero);
 
-/* Nav background solidify on scroll */
+/* Nav background solidify on scroll + scroll progress bar */
 const nav = document.getElementById('nav');
+const scrollProgress = document.getElementById('scrollProgress');
 window.addEventListener('scroll', () => {
   nav.style.boxShadow = window.scrollY > 20 ? '0 10px 30px -20px rgba(0,0,0,.6)' : 'none';
+  const h = document.documentElement;
+  const pct = (h.scrollTop) / (h.scrollHeight - h.clientHeight) * 100;
+  scrollProgress.style.width = pct + '%';
 }, { passive: true });
+
+/* ===== Custom cursor (desktop / fine pointer only) ===== */
+if (window.matchMedia('(pointer: fine)').matches) {
+  document.body.classList.add('has-cursor');
+  const dot = document.getElementById('cursorDot');
+  const ring = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  window.addEventListener('mousemove', (e) => {
+    mx = e.clientX; my = e.clientY;
+    dot.style.transform = `translate(${mx}px, ${my}px) translate(-50%,-50%)`;
+  });
+  (function raf() {
+    rx += (mx - rx) * 0.18;
+    ry += (my - ry) * 0.18;
+    ring.style.transform = `translate(${rx}px, ${ry}px) translate(-50%,-50%)`;
+    requestAnimationFrame(raf);
+  })();
+  document.querySelectorAll('a, button, .tilt, .week-card, .included-card, .outcome-card, .ticket').forEach(el => {
+    el.addEventListener('mouseenter', () => ring.classList.add('is-active'));
+    el.addEventListener('mouseleave', () => ring.classList.remove('is-active'));
+  });
+
+  /* Magnetic buttons */
+  document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('mousemove', (e) => {
+      const r = btn.getBoundingClientRect();
+      const relX = e.clientX - r.left - r.width / 2;
+      const relY = e.clientY - r.top - r.height / 2;
+      btn.style.transform = `translate(${relX * 0.22}px, ${relY * 0.35}px)`;
+    });
+    btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+  });
+
+  /* Tilt cards */
+  document.querySelectorAll('.tilt').forEach(card => {
+    card.addEventListener('mousemove', (e) => {
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      card.style.transform = `perspective(700px) rotateY(${px * 7}deg) rotateX(${py * -7}deg) translateY(-4px)`;
+    });
+    card.addEventListener('mouseleave', () => { card.style.transform = ''; });
+  });
+}
+
+/* ===== Build-log horizontal filmstrip ===== */
+const track = document.getElementById('buildlogTrack');
+const rail = document.getElementById('buildlogRail');
+const counter = document.getElementById('buildlogCounter');
+const prevBtn = document.getElementById('buildlogPrev');
+const nextBtn = document.getElementById('buildlogNext');
+const cards = track.querySelectorAll('.week-card');
+const total = cards.length;
+
+rail.innerHTML = Array.from({ length: total }, () => '<div class="rail-dot"><i></i></div>').join('');
+const railDots = rail.querySelectorAll('.rail-dot');
+
+function setActive(index) {
+  index = Math.max(0, Math.min(total - 1, index));
+  railDots.forEach((dot, i) => {
+    dot.classList.toggle('done', i < index);
+    dot.classList.toggle('active', i === index);
+  });
+  counter.textContent = String(index + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+}
+
+function cardStep() {
+  const card = cards[0];
+  const style = getComputedStyle(track);
+  const gap = parseFloat(style.columnGap || style.gap || 24);
+  return card.getBoundingClientRect().width + gap;
+}
+
+prevBtn.addEventListener('click', () => track.scrollBy({ left: -cardStep(), behavior: 'smooth' }));
+nextBtn.addEventListener('click', () => track.scrollBy({ left: cardStep(), behavior: 'smooth' }));
+
+/* Wheel → horizontal scroll when hovering the track (desktop convenience) */
+track.addEventListener('wheel', (e) => {
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+    e.preventDefault();
+    track.scrollLeft += e.deltaY;
+  }
+}, { passive: false });
+
+/* Drag to scroll */
+let isDown = false, startX = 0, startScroll = 0;
+track.addEventListener('pointerdown', (e) => {
+  isDown = true; startX = e.clientX; startScroll = track.scrollLeft;
+  track.setPointerCapture(e.pointerId);
+});
+track.addEventListener('pointermove', (e) => {
+  if (!isDown) return;
+  track.scrollLeft = startScroll - (e.clientX - startX);
+});
+track.addEventListener('pointerup', () => { isDown = false; });
+track.addEventListener('pointercancel', () => { isDown = false; });
+
+/* Track active card via scroll position */
+let ticking = false;
+track.addEventListener('scroll', () => {
+  if (ticking) return;
+  ticking = true;
+  requestAnimationFrame(() => {
+    const trackRect = track.getBoundingClientRect();
+    let closest = 0, closestDist = Infinity;
+    cards.forEach((card, i) => {
+      const r = card.getBoundingClientRect();
+      const dist = Math.abs((r.left - trackRect.left));
+      if (dist < closestDist) { closestDist = dist; closest = i; }
+    });
+    setActive(closest);
+    ticking = false;
+  });
+}, { passive: true });
+
+setActive(0);
