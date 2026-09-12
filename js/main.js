@@ -18,39 +18,66 @@ navLinks.addEventListener('click', (e) => {
   }
 });
 
-/* Reveal on scroll */
-const revealEls = document.querySelectorAll('.reveal');
-const revealObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('in');
-      revealObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.12 });
-revealEls.forEach(el => revealObserver.observe(el));
+/* Reveal on scroll + stat count-up
+   Uses getBoundingClientRect polled on scroll/resize (rAF-throttled) rather than
+   IntersectionObserver — some embedded/sandboxed viewports never fire IO callbacks
+   even for elements plainly on screen, which would leave most of the page stuck at
+   opacity:0. This approach reads real screen geometry, so it can't silently fail. */
+const revealEls = Array.from(document.querySelectorAll('.reveal'));
+const statEls = Array.from(document.querySelectorAll('.stat-num'));
+const revealDone = new WeakSet();
+const statDone = new WeakSet();
 
-/* Stat count-up */
-const statEls = document.querySelectorAll('.stat-num');
-const statObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (!entry.isIntersecting) return;
-    const el = entry.target;
-    const target = parseInt(el.dataset.count, 10);
-    const suffix = el.dataset.suffix || '';
-    const duration = 1100;
-    const start = performance.now();
-    function tick(now) {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      el.textContent = Math.round(eased * target) + suffix;
-      if (progress < 1) requestAnimationFrame(tick);
+function elementIsVisible(el, thresholdPx) {
+  const r = el.getBoundingClientRect();
+  if (r.height === 0 && r.width === 0) return false;
+  return r.top < (window.innerHeight - thresholdPx) && r.bottom > 0;
+}
+
+function runCountUp(el) {
+  const target = parseInt(el.dataset.count, 10);
+  const suffix = el.dataset.suffix || '';
+  const duration = 1100;
+  const start = performance.now();
+  function tick(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(eased * target) + suffix;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function checkVisibility() {
+  revealEls.forEach(el => {
+    if (!revealDone.has(el) && elementIsVisible(el, 60)) {
+      el.classList.add('in');
+      revealDone.add(el);
     }
-    requestAnimationFrame(tick);
-    statObserver.unobserve(el);
   });
-}, { threshold: 0.5 });
-statEls.forEach(el => statObserver.observe(el));
+  statEls.forEach(el => {
+    if (!statDone.has(el) && elementIsVisible(el, 100)) {
+      runCountUp(el);
+      statDone.add(el);
+    }
+  });
+}
+
+/* Called directly on every scroll/resize — checking ~48 elements' getBoundingClientRect
+   is well under a millisecond, so there's no real cost to skip a throttle here, and
+   skipping one removes any chance of a fast scroll jumping an element fully through
+   the viewport between checks. */
+window.addEventListener('scroll', checkVisibility, { passive: true });
+window.addEventListener('resize', checkVisibility);
+window.addEventListener('scrollend', checkVisibility);
+document.addEventListener('visibilitychange', checkVisibility);
+window.addEventListener('pageshow', checkVisibility);
+checkVisibility();
+/* Safety net: re-check on a staggered schedule after load settles, covering
+   fonts/images finishing layout, or a tab that was backgrounded (0-size) during
+   the checks above and only becomes properly laid out a moment later. */
+window.addEventListener('load', () => setTimeout(checkVisibility, 300));
+[300, 800, 1500, 3000].forEach(ms => setTimeout(checkVisibility, ms));
 
 /* FAQ accordion */
 document.querySelectorAll('.faq-item').forEach(item => {
@@ -65,12 +92,13 @@ document.querySelectorAll('.faq-item').forEach(item => {
 /* Sticky CTA bar — show after hero is scrolled past */
 const stickyCta = document.getElementById('stickyCta');
 const hero = document.querySelector('.hero');
-const ctaObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    stickyCta.classList.toggle('show', !entry.isIntersecting);
-  });
-}, { threshold: 0 });
-ctaObserver.observe(hero);
+function updateStickyCta() {
+  const heroBottom = hero.getBoundingClientRect().bottom;
+  stickyCta.classList.toggle('show', heroBottom < 0);
+}
+window.addEventListener('scroll', updateStickyCta, { passive: true });
+window.addEventListener('resize', updateStickyCta);
+updateStickyCta();
 
 /* Nav background solidify on scroll + scroll progress bar */
 const nav = document.getElementById('nav');
